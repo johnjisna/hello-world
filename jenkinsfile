@@ -6,6 +6,7 @@ pipeline {
         disableConcurrentBuilds()
     }
     environment {
+	APP_NAME = "sample-python-app"
         AWS_SECRET_MANAGER = "${APP_NAME_AWS_SECRET_MANAGER}"
         AWS_REGION = "${APP_NAME_AWS_REGION}"
         DOCKER_IMAGE_NAME = "${APP_NAME_AWS_IMAGE_NAME}"
@@ -45,8 +46,8 @@ pipeline {
                 SERVER_NAME = "${APP_NAME_DEV_SERVER}"
             }
             steps {
-                sh 'scp -o StrictHostKeyChecking=no $WORKSPACE/.config/docker/docker-compose-dev.yml ubuntu@${SERVER_NAME}:/home/ubuntu/${APP_NAME}/docker-compose.yml'
-                sh 'scp -o StrictHostKeyChecking=no $WORKSPACE/.config/docker/.env  ubuntu@${SERVER_NAME}:/home/ubuntu/${APP_NAME}'
+                sh 'scp -o StrictHostKeyChecking=no $WORKSPACE/docker-compose.yml ubuntu@${SERVER_NAME}:/home/ubuntu/${APP_NAME}/docker-compose.yml'
+                sh 'scp -o StrictHostKeyChecking=no $WORKSPACE/.env  ubuntu@${SERVER_NAME}:/home/ubuntu/${APP_NAME}'
             }
         }
 
@@ -58,8 +59,8 @@ pipeline {
                 SERVER_NAME = "${APP_NAME_PROD_SERVER}"
             }
             steps {
-                sh 'scp -o StrictHostKeyChecking=no $WORKSPACE/.config/docker/docker-compose-prod.yml ubuntu@${SERVER_NAME}:/home/ubuntu/${APP_NAME}/docker-compose.yml'
-                sh 'scp -o StrictHostKeyChecking=no $WORKSPACE/.config/docker/.env  ubuntu@${SERVER_NAME}:/home/ubuntu/${APP_NAME}'
+                sh 'scp -o StrictHostKeyChecking=no $WORKSPACE/docker-compose.yml ubuntu@${SERVER_NAME}:/home/ubuntu/${APP_NAME}/docker-compose.yml'
+                sh 'scp -o StrictHostKeyChecking=no $WORKSPACE/.env  ubuntu@${SERVER_NAME}:/home/ubuntu/${APP_NAME}'
             }
         }        
 
