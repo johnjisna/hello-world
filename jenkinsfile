@@ -30,9 +30,10 @@ pipeline {
                     credentialsId: env.AWS_CREDENTIALS_ID
                 ]])
                 {
-                    sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-                    sh "docker tag ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
-                    sh "docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+                    sh "aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 272842814728.dkr.ecr.ap-south-1.amazonaws.com"
+                    sh "docker build -t sample ."
+                    sh "docker tag sample:latest 272842814728.dkr.ecr.ap-south-1.amazonaws.com/sample:latest"
+                    sh "docker push 272842814728.dkr.ecr.ap-south-1.amazonaws.com/sample:latest"
                 }
             }
         }
