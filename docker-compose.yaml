@@ -1,0 +1,14 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8081:8081"
+    command: python3 app.py
+  
+  nginx:
+    build:
+      context: ./nginx
+    ports:
+      - "8085:80"
+   
+
