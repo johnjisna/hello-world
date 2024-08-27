@@ -1,3 +1,4 @@
+# Use a base image with Python 3 installed
 FROM python:3.9-slim
 
 # Set working directory
@@ -9,6 +10,6 @@ COPY . .
 # Install dependencies
 RUN pip install -r requirements.txt
 
-# Command to run the application
+# Specify the command to run the application
 CMD ["python3", "app.py"]
 
