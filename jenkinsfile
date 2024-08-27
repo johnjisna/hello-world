@@ -47,7 +47,7 @@ pipeline {
             }
             steps {
                 sh 'scp -o StrictHostKeyChecking=no $WORKSPACE/docker-compose.yml ubuntu@${SERVER_NAME}:/home/ubuntu/${APP_NAME}/docker-compose.yml'
-                //sh 'scp -o StrictHostKeyChecking=no $WORKSPACE/.config/docker/.env  ubuntu@${SERVER_NAME}:/home/ubuntu/${APP_NAME}'
+                sh 'scp -o StrictHostKeyChecking=no $WORKSPACE/.env  ubuntu@${SERVER_NAME}:/home/ubuntu/${APP_NAME}'
             }
         }
 
@@ -60,7 +60,7 @@ pipeline {
             }
             steps {
                 sh 'scp -o StrictHostKeyChecking=no $WORKSPACE/docker-compose.yml ubuntu@${SERVER_NAME}:/home/ubuntu/${APP_NAME}/docker-compose.yml'
-               // sh 'scp -o StrictHostKeyChecking=no $WORKSPACE/.config/docker/.env  ubuntu@${SERVER_NAME}:/home/ubuntu/${APP_NAME}'
+                sh 'scp -o StrictHostKeyChecking=no $WORKSPACE/.env  ubuntu@${SERVER_NAME}:/home/ubuntu/${APP_NAME}'
             }
         }        
 
