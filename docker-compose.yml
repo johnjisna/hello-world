@@ -1,0 +1,11 @@
+services:
+  web:
+    image: ${WEB_IMAGE_NAME}
+    ports:
+      - "8081:8081"
+    command: python3 app.py
+
+  nginx:
+    image: ${WEB_IMAGE_NAME-NGINX}
+    ports:
+      - "8085:80"
