@@ -1,13 +1,11 @@
 services:
-  app:
-    build: .
+    image: ${WEB_IMAGE_NAME}
     ports:
       - "8081:8081"
     command: python3 app.py
   
   nginx:
-    build:
-      context: ./nginx
+    image: ${WEB_IMAGE_NAME-NGINX}
     ports:
       - "8085:80"
    
