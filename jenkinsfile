@@ -1,69 +1,100 @@
 pipeline {
     agent any
+    triggers { githubPush() }
+    options { 
+        buildDiscarder(logRotator(numToKeepStr: "3")) 
+        disableConcurrentBuilds()
+    }
     environment {
-        AWS_ACCOUNT_ID = "${APP_NAME_AWS_ACCOUNT_ID}"
         AWS_SECRET_MANAGER = "${APP_NAME_AWS_SECRET_MANAGER}"
-        SERVER_NAME = "${APP_NAME_SERVER}"
         AWS_REGION = "${APP_NAME_AWS_REGION}"
         DOCKER_IMAGE_NAME = "${APP_NAME_AWS_IMAGE_NAME}"
-        DOCKER_IMAGE_TAG = "${APP_NAME_AWS_IMAGE_TAG}-${BUILD_NUMBER}"
-        SONAR_SCANNER_HOME = tool 'SonarQubeScanner' 
+        DOCKER_IMAGE_TAG = "${APP_NAME_AWS_IMAGE_TAG}"
+        AWS_ACCOUNT_ID = "${APP_NAME_AWS_ACCOUNT_ID}"
+        AWS_CREDENTIALS_ID = "my-aws-creds"
     }
-
+    
     stages {
-        stage('SonarQube Analysis') {
-            when {
-                branch 'main'
-            }
-            steps {
-                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                    script {
-                        sh """
-                            ${SONAR_SCANNER_HOME}/bin/sonar-scanner \
-                            -Dsonar.projectKey=${DOCKER_IMAGE_NAME} \
-                            -Dsonar.sources=. \
-                            -Dsonar.host.url=https://sonarqube.becomap.com/ \
-                            -Dsonar.login=${SONAR_TOKEN}
-                        """
-                    }
+        stage('Update docker image') {
+            when { 
+                anyOf { 
+                    branch 'develop'
+                    branch 'production'
                 }
-            }
-        } 
-
-        stage('Environment Setup') {
-            when {
-                branch 'main'
-            }
-            steps {
-                script {
-                    sh 'mkdir -p $WORKSPACE/.config/docker'
-                    sh """
-                        aws secretsmanager get-secret-value --secret-id ${AWS_SECRET_MANAGER} --query SecretString --output text --region ${AWS_REGION} | \
-                        jq -r 'to_entries[] | "\\(.key)=\\(.value|tostring)"' > $WORKSPACE/.config/docker/.env
-                    """
-                }
-            }
-        }
-
-        stage('Login and Push to ECR') {
-            when {
-                branch 'main'
             }
             steps {
                 withCredentials([[
                     $class: 'AmazonWebServicesCredentialsBinding',
                     accessKeyVariable: 'AWS_ACCESS_KEY_ID',
                     secretKeyVariable: 'AWS_SECRET_ACCESS_KEY',
-                    credentialsId: 'aws-creds'
-                ]]) {
-                    script {
-                        sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-                        sh "docker build -t ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} ."
-                        sh "docker tag ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
-                        sh "docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
-                    }
+                    credentialsId: env.AWS_CREDENTIALS_ID
+                ]])
+                {
+                    sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+                    sh "docker tag ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+                    sh "docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
                 }
             }
+        }
+
+        stage('Update server configs for Develop') {
+            when {
+                branch 'develop'
+            }
+            environment {
+                SERVER_NAME = "${APP_NAME_DEV_SERVER}"
+            }
+            steps {
+                sh 'scp -o StrictHostKeyChecking=no $WORKSPACE/.config/docker/docker-compose-dev.yml ubuntu@${SERVER_NAME}:/home/ubuntu/${APP_NAME}/docker-compose.yml'
+                sh 'scp -o StrictHostKeyChecking=no $WORKSPACE/.config/docker/.env  ubuntu@${SERVER_NAME}:/home/ubuntu/${APP_NAME}'
+            }
+        }
+
+        stage('Update server configs for Production') {
+            when {
+                branch 'production'
+            }
+            environment {
+                SERVER_NAME = "${APP_NAME_PROD_SERVER}"
+            }
+            steps {
+                sh 'scp -o StrictHostKeyChecking=no $WORKSPACE/.config/docker/docker-compose-prod.yml ubuntu@${SERVER_NAME}:/home/ubuntu/${APP_NAME}/docker-compose.yml'
+                sh 'scp -o StrictHostKeyChecking=no $WORKSPACE/.config/docker/.env  ubuntu@${SERVER_NAME}:/home/ubuntu/${APP_NAME}'
+            }
+        }        
+
+        stage('Update server for Develop') {
+            when {
+                branch 'develop'
+            }
+            environment {
+                SERVER_NAME = "${APP_NAME_DEV_SERVER}"
+            }
+            steps {
+                sh 'ssh -o StrictHostKeyChecking=no ubuntu@${SERVER_NAME} -t "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com && docker pull ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} && cd /home/ubuntu/${APP_NAME} && docker compose up -d --force-recreate --build && docker compose exec -u 0 web python manage.py migrate --no-input && docker compose exec -u 0 web python manage.py collectstatic --no-input && docker image prune -a -f"'
+                sh 'docker image prune -a -f'
+            }
+        }
+
+        stage('Update server for Production') {
+            when {
+                branch 'production'
+            }
+            environment {
+                SERVER_NAME = "${APP_NAME_PROD_SERVER}"
+            }
+            steps {
+                sh 'ssh -o StrictHostKeyChecking=no ubuntu@${SERVER_NAME} -t "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com && docker pull ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} && cd /home/ubuntu/${APP_NAME} && docker compose up -d --force-recreate --build && docker compose exec -u 0 web python manage.py migrate --no-input && docker compose exec -u 0 web python manage.py collectstatic --no-input && docker image prune -a -f"'
+                sh 'docker image prune -a -f'
+            }
+        }  
+    }
+    post {
+        success { 
+            echo "APP_NAME ${env.BRANCH_NAME.toUpperCase()} SERVER UPDATE SUCCESSFUL: Job '(<${env.BUILD_URL}|Open>)'"
+        }
+        failure { 
+            echo "APP_NAME ${env.BRANCH_NAME.toUpperCase()} SERVER UPDATE FAILED: Job '(<${env.BUILD_URL}|Open>)'"
         }
     }
 }
