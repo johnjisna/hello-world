@@ -1,11 +1,10 @@
 services:
-  web:
+  app:
     image: ${WEB_IMAGE_NAME}
     ports:
       - "8081:8081"
-    command: python3 app.py
-
+    command: python3 app.py  # Ensure 'python3' is available
   nginx:
-    image: ${WEB_IMAGE_NAME-NGINX}
+    image: ${NGINX_IMAGE_NAME}
     ports:
       - "8085:80"
