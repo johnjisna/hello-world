@@ -1,5 +1,5 @@
 services:
-  web:
+  app:
     image: ${WEB_IMAGE_NAME}
     ports:
       - "8081:8081"
